@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Env & secrets (never commit API keys)
+.env
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# VortexOSINT outputs
+vortexosint_map.html
+*_map.html
+results*.json
+results*.txt
+results*.csv

@@ -1,0 +1,38 @@
+# Core dependencies
+requests>=2.31.0
+click>=8.1.0
+colorama>=0.4.6
+rich>=13.0.0
+python-dotenv>=1.0.0
+dnspython>=2.4.0
+python-whois>=0.8.0
+cryptography>=41.0.0
+
+# Optional - Web scraping & parsing
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Optional - Image metadata
+pillow>=10.0.0
+exifread>=3.0.0
+
+# Optional - Document metadata
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+openpyxl>=3.1.0
+
+# Optional - Geospatial mapping
+folium>=0.14.0
+
+# Optional - Network scanning
+python-nmap>=0.7.1
+scapy>=2.5.0
+netaddr>=0.8.0
+pysocks>=1.7.1
+
+# Development
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0

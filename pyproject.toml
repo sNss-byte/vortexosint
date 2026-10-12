@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vortexosint"
+version = "1.0.0"
+description = "Multi-tool OSINT/GEOSINT CLI for reconnaissance and intelligence gathering"
+readme = "README.md"
+authors = [{name = "VortexOSINT Team"}]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Internet",
+    "Topic :: System :: Networking :: Monitoring",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.31.0",
+    "click>=8.1.0",
+    "colorama>=0.4.6",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+    "dnspython>=2.4.0",
+    "python-whois>=0.8.0",
+    "cryptography>=41.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+full = [
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "pillow>=10.0.0",
+    "exifread>=3.0.0",
+    "PyPDF2>=3.0.0",
+    "python-docx>=0.8.11",
+    "openpyxl>=3.1.0",
+    "folium>=0.14.0",
+    "python-nmap>=0.7.1",
+    "scapy>=2.5.0",
+    "netaddr>=0.8.0",
+    "pysocks>=1.7.1",
+]
+
+[project.scripts]
+vortexosint = "vortexosint.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/vortexosint/vortexosint"
+Repository = "https://github.com/vortexosint/vortexosint"
+Issues = "https://github.com/vortexosint/vortexosint/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vortexosint*"]
+
+[tool.setuptools.package-data]
+vortexosint = ["data/*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
