@@ -265,6 +265,17 @@ vortexosint/
 4. Push to the branch
 5. Open a Pull Request
 
+### Auto-push local (optionnel)
+
+`tools/autopush.py` surveille le dépôt : dès qu'un fichier change, il lance
+les contrôles (`py_compile` + smoke test), commit, push vers `main` puis
+vérifie via l'API GitHub que le distant == HEAD local.
+
+```bash
+python tools/autopush.py          # surveillance en continu (Ctrl+C pour arrêter)
+python tools/autopush.py --once   # un seul passage
+```
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
