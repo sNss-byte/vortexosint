@@ -217,9 +217,14 @@ MODULES = {
         "description": "EXIF, GPS, PDF & Office metadata",
         "example": "metadata --file document.pdf",
     },
+    "password": {
+        "label": "PASSWORD",
+        "description": "Secure passwords, passphrases & audits",
+        "example": "password --length 20 --count 5",
+    },
 }
 
-MODULE_ORDER = ["osint", "geosint", "network", "crypto", "social", "metadata"]
+MODULE_ORDER = ["osint", "geosint", "network", "crypto", "social", "metadata", "password"]
 
 
 def show_modules_table():

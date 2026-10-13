@@ -44,7 +44,8 @@ from vortexosint.modules import (
     network_module,
     crypto_module,
     social_module,
-    metadata_module
+    metadata_module,
+    password_module
 )
 
 MODULE_HANDLERS = {
@@ -54,6 +55,7 @@ MODULE_HANDLERS = {
     'crypto': crypto_module.run,
     'social': social_module.run,
     'metadata': metadata_module.run,
+    'password': password_module.run,
 }
 
 
@@ -116,7 +118,7 @@ class VortexOSINT:
 
         # Subparsers for modules
         subparsers = parser.add_subparsers(dest='module', metavar='MODULE',
-                                           help='Available modules: osint, geosint, network, crypto, social, metadata')
+                                           help='Available modules: osint, geosint, network, crypto, social, metadata, password')
 
         # OSINT Module
         osint_parser = subparsers.add_parser('osint', help='General OSINT reconnaissance',
@@ -251,6 +253,44 @@ class VortexOSINT:
         meta_parser.add_argument('--recursive', '-r', action='store_true',
                                  help='Recursively scan directories')
 
+        # Password Module
+        pass_parser = subparsers.add_parser('password', help='Secure passwords & audits',
+                                            formatter_class=ColoredHelpFormatter,
+                                            epilog='Examples:\n'
+                                                   '  vortexosint password --length 20 --count 5\n'
+                                                   '  vortexosint password --passphrase --words 6\n'
+                                                   '  vortexosint password --check\n'
+                                                   '  vortexosint password --hash --algo sha256')
+        pass_parser.add_argument('--length', '-l', type=int, default=20,
+                                 help='Generated password length (default: 20)')
+        pass_parser.add_argument('--count', '-n', type=int, default=5,
+                                 help='How many passwords to generate (default: 5)')
+        pass_parser.add_argument('--no-symbols', action='store_true',
+                                 help='Exclude symbols (!@#$...)')
+        pass_parser.add_argument('--no-digits', action='store_true',
+                                 help='Exclude digits')
+        pass_parser.add_argument('--no-uppercase', action='store_true',
+                                 help='Exclude uppercase letters')
+        pass_parser.add_argument('--allow-ambiguous', action='store_true',
+                                 help='Allow ambiguous chars (0O1lI)')
+        pass_parser.add_argument('--passphrase', action='store_true',
+                                 help='Generate a memorable passphrase instead')
+        pass_parser.add_argument('--words', '-w', type=int, default=5,
+                                 help='Words per passphrase (default: 5)')
+        pass_parser.add_argument('--separator', type=str, default='-',
+                                 help='Word separator (default: -)')
+        pass_parser.add_argument('--check', nargs='?', const='__prompt__',
+                                 default=None, metavar='PASSWORD',
+                                 help='Audit a password (no value = hidden prompt)')
+        pass_parser.add_argument('--hash', nargs='?', const='__prompt__',
+                                 default=None, metavar='PASSWORD',
+                                 help='Salted hash of a password (no value = hidden prompt)')
+        pass_parser.add_argument('--algo',
+                                 choices=['sha256', 'sha512', 'sha3_256', 'sha1', 'md5'],
+                                 default='sha256', help='Hash algorithm (default: sha256)')
+        pass_parser.add_argument('--salt', type=str, default=None,
+                                 help='Salt (default: random 16 bytes hex)')
+
         return parser
 
     # ------------------------------------------------------------------
@@ -313,11 +353,12 @@ class VortexOSINT:
 
     def _interactive_loop(self) -> int:
         """Guided menu loop. Returns when the user quits."""
+        n = len(ui.MODULE_ORDER)
         print("Mode interactif — 'q' pour quitter.\n")
         ui.show_modules_table()
         while True:
             try:
-                choice = ui.ask("Module (1-6 ou nom)")
+                choice = ui.ask(f"Module (1-{n} ou nom)")
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 0
@@ -326,7 +367,8 @@ class VortexOSINT:
                 ui.info("À bientôt.")
                 return 0
             if key is None:
-                ui.warning("Choix inconnu — tape 1-6 ou le nom du module (q pour quitter).")
+                ui.warning(f"Choix inconnu — tape 1-{len(ui.MODULE_ORDER)} ou le nom "
+                           f"du module (q pour quitter).")
                 continue
             try:
                 ns = self._prompt_module_args(key)
@@ -483,6 +525,32 @@ class VortexOSINT:
             m.exif = ui.ask_yes_no("Extraire l'EXIF complet ?", False)
             m.strings = ui.ask_yes_no("Extraire les strings ?", False)
             m.recursive = ui.ask_yes_no("Parcours récursif ?", False)
+        elif key == 'password':
+            from vortexosint.modules.password_module import PROMPT_SENTINEL
+            action = ui.ask_choice("Action", ["generate", "passphrase", "check", "hash"],
+                                   "generate")
+            m.check, m.hash, m.passphrase = None, None, False
+            if action == "check":
+                m.check = PROMPT_SENTINEL  # hidden secure prompt at run time
+            elif action == "hash":
+                m.hash = PROMPT_SENTINEL
+                m.algo = ui.ask_choice("Algorithme", ["sha256", "sha512", "sha3_256"], "sha256")
+                m.salt = None
+            elif action == "passphrase":
+                m.passphrase = True
+                m.words = self._ask_int("Nombre de mots", 5)
+                m.separator = ui.ask("Séparateur", "-") or "-"
+                m.length, m.count = 20, 5
+                m.no_symbols = m.no_digits = m.no_uppercase = False
+                m.allow_ambiguous = False
+            else:
+                m.length = self._ask_int("Longueur", 20)
+                m.count = self._ask_int("Combien", 5)
+                m.no_symbols = not ui.ask_yes_no("Inclure les symboles ?", True)
+                m.no_digits = not ui.ask_yes_no("Inclure les chiffres ?", True)
+                m.no_uppercase = not ui.ask_yes_no("Inclure les majuscules ?", True)
+                m.allow_ambiguous = ui.ask_yes_no("Autoriser 0O1lI ?", False)
+                m.words, m.separator, m.algo, m.salt = 5, "-", "sha256", None
         return m
 
 

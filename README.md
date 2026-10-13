@@ -35,6 +35,7 @@ VortexOSINT is a comprehensive command-line intelligence gathering toolkit desig
 | **CRYPTO** | Blockchain address analysis, transaction tracking, entity profiling |
 | **SOCIAL** | Username enumeration across 50+ platforms, email/phone lookup |
 | **METADATA** | File metadata extraction (EXIF, GPS, PDF, Office docs, hashes) |
+| **PASSWORD** | Secure generation (CSPRNG), passphrases, strength audit, salted hashing |
 
 ## 🚀 Installation
 
@@ -59,6 +60,8 @@ pip install vortexosint[full]
 
 ### Global Options
 ```bash
+vortexosint                        # Interactive menu (guided mode)
+vortexosint --menu                 # Force the interactive menu
 vortexosint --help                 # Show help
 vortexosint --version              # Show version
 vortexosint --no-banner            # Disable ASCII banner
@@ -169,6 +172,22 @@ vortexosint metadata --dir /path/to/files
 vortexosint metadata -d /path/to/files --recursive --strings
 ```
 
+### PASSWORD Module
+```bash
+# Generate 5 secure passwords (20 chars, CSPRNG)
+vortexosint password --length 20 --count 5
+vortexosint password -l 32 -n 3 --no-symbols
+
+# Memorable passphrase (6 words)
+vortexosint password --passphrase --words 6
+
+# Audit a password (hidden prompt, nothing written to disk)
+vortexosint password --check
+
+# Salted hash (sha256/sha512/sha3_256)
+vortexosint password --hash --algo sha256
+```
+
 ## 📊 Output Formats
 
 ```bash
@@ -213,7 +232,8 @@ vortexosint/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── colors.py       # Terminal colors
-│   │   └── banner.py       # ASCII banners
+│   │   ├── banner.py       # ASCII banners
+│   │   └── ui.py           # rich UI (tables, panels, prompts)
 │   └── modules/
 │       ├── __init__.py
 │       ├── osint_module.py
@@ -221,7 +241,8 @@ vortexosint/
 │       ├── network_module.py
 │       ├── crypto_module.py
 │       ├── social_module.py
-│       └── metadata_module.py
+│       ├── metadata_module.py
+│       └── password_module.py
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md

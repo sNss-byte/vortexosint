@@ -17,7 +17,8 @@ from vortexosint.modules import (
     network_module,
     crypto_module,
     social_module,
-    metadata_module
+    metadata_module,
+    password_module
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     'crypto_module',
     'social_module',
     'metadata_module',
+    'password_module',
 ]
