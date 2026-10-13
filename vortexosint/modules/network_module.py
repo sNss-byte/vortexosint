@@ -238,13 +238,101 @@ def grab_banner(target: str, port: int) -> str:
 
 
 def detect_os(target: str) -> Dict[str, Any]:
-    """Detect OS (stub)."""
-    # TODO: Implement actual OS detection
+    """Detect OS via nmap (if available) else TTL heuristic.
+
+    No more hardcoded result: returns 'Unknown' when it cannot tell,
+    with a low/honest accuracy. Note: scanning a public IP usually
+    fingerprints the ISP router/box (Linux-based), not the PC behind NAT.
+    """
+    import socket
+
+    # 1) Try nmap -O if installed (needs privileges for full accuracy)
+    nmap_bin = shutil.which("nmap")
+    if nmap_bin:
+        try:
+            proc = subprocess.run(
+                [nmap_bin, "-O", "-F", target],
+                capture_output=True, text=True, timeout=90,
+            )
+            out = (proc.stdout or "") + "\n" + (proc.stderr or "")
+            # Parse "Running: ...", "OS details: ...", "Aggressive OS guesses:"
+            running = re.search(r"Running:\s*(.+)", out)
+            details = re.search(r"OS details:\s*(.+)", out)
+            guess = re.search(r"Aggressive OS guesses:\s*\n((?:.*\n){1,3})", out)
+            if running or details:
+                name = (running.group(1).strip() if running else details.group(1).strip())
+                acc_m = re.search(r"(\d{1,3})%", out)
+                acc = int(acc_m.group(1)) if acc_m else 70
+                print(f"  {Colors.GREEN}[+] OS (nmap): {name}{Colors.RESET}")
+                return {
+                    'name': name,
+                    'version': '',
+                    'accuracy': acc,
+                    'details': details.group(1).strip() if details else '',
+                    'method': 'nmap',
+                    'raw_guess': guess.group(1).strip() if guess else '',
+                }
+        except Exception as e:
+            print(Colors.dim(f"    nmap failed ({e}), falling back to TTL"))
+        else:
+            # nmap ran but found nothing usable -> fall through to TTL
+            if "Too many fingerprints" in out or "No OS matches" in out:
+                print(Colors.dim("    nmap: no OS match, falling back to TTL"))
+
+    # 2) TTL heuristic via ping (works without root)
+    ping_bin = shutil.which("ping")
+    ttl = None
+    if ping_bin:
+        flag = "-n" if sys.platform.startswith("win") else "-c"
+        try:
+            proc = subprocess.run(
+                [ping_bin, flag, "2", target],
+                capture_output=True, text=True, timeout=30,
+            )
+            m = re.search(r"ttl[=\s:]+(\d+)", proc.stdout or "", re.IGNORECASE)
+            if m:
+                ttl = int(m.group(1))
+        except Exception:
+            pass
+
+    if ttl is None:
+        # 3) Last resort: TCP hints are unreliable here, be honest
+        try:
+            socket.gethostbyname(target)
+            reachable = True
+        except Exception:
+            reachable = False
+        print(f"  {Colors.YELLOW}[~] OS inconnnu (hote injoignable ou TTL masque){Colors.RESET}")
+        return {
+            'name': 'Unknown',
+            'version': '',
+            'accuracy': 0,
+            'details': 'Hote injoignable en ICMP et nmap indisponible/sans resultat. '
+                       'Si tu scannes ton IP publique, tu fingerprintes ta box (Linux), pas ton PC.',
+            'method': 'none',
+            'reachable': reachable,
+        }
+
+    if ttl <= 64:
+        guess_name, initial, acc = "Linux/Unix", 64, 65
+    elif ttl <= 128:
+        guess_name, initial, acc = "Windows", 128, 65
+    else:
+        guess_name, initial, acc = "Network device (Cisco/Solaris?)", 255, 50
+
+    hops = initial - ttl
+    print(f"  {Colors.GREEN}[+] OS probable (TTL={ttl}): {guess_name}{Colors.RESET}")
+    print(Colors.dim(
+        f"    TTL observe={ttl}, TTL initial suppose={initial} (~{hops} sauts). "
+        f"Heuristique fragile derriere NAT/box/VPN."
+    ))
     return {
-        'name': 'Linux',
-        'version': '3.x - 4.x',
-        'accuracy': 92,
-        'details': 'Linux 3.2 - 4.9 (Ubuntu 16.04 - 18.04)',
+        'name': guess_name,
+        'version': '',
+        'accuracy': acc,
+        'details': f'TTL={ttl} (initial guess {initial}, ~{hops} hops)',
+        'method': 'ttl',
+        'ttl': ttl,
     }
 
 

@@ -633,6 +633,7 @@ class VortexOSINT:
             except (EOFError, KeyboardInterrupt):
                 print()
                 ui.info("Retour au menu.")
+                page = 0
                 continue
             except Exception as e:
                 if getattr(self.args, 'verbose', 0):
@@ -645,6 +646,7 @@ class VortexOSINT:
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 0
+            page = 0
 
     # -- per-module guided prompts ------------------------------------
 
