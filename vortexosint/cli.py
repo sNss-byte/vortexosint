@@ -237,9 +237,7 @@ class VortexOSINT:
         parser.add_argument('--no-banner', action='store_true',
                             help='Disable ASCII banner')
         parser.add_argument('--no-color', action='store_true',
-                            help='Disable colored output (already the default)')
-        parser.add_argument('--color', action='store_true',
-                            help='Force colored output (rich panels, ANSI)')
+                            help='Disable colored output')
         parser.add_argument('--verbose', '-V', action='count', default=0,
                             help='Increase verbosity (-V, -VV, -VVV)')
         parser.add_argument('--output', '-o', type=str,
@@ -443,9 +441,8 @@ class VortexOSINT:
     def run(self, args: Optional[list] = None) -> int:
         """Run the CLI application."""
         raw = list(args) if args is not None else sys.argv[1:]
-        # Monochrome by default; --color opts back into rich/ANSI output.
-        # Applied before parsing so --help is plain too.
-        if '--color' not in raw:
+        # Honor --no-color even for --help (parsed before the flag is applied).
+        if '--no-color' in raw:
             ui.set_plain_mode(True)
 
         self.args = self.parser.parse_args(args)
