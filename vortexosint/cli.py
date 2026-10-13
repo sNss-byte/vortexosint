@@ -58,19 +58,17 @@ MODULE_HANDLERS = {
     'password': password_module.run,
 }
 
-# Retro paged menu: (kind, ref, label) — kind is "module" (guided flow)
+# Single-page retro menu: (kind, ref, label) — kind is "module" (guided flow)
 # or "quick" (qid from QUICK_SPECS below).
 MENU_PAGES = [
-    {"title": "GUIDED FLOWS", "cols": [
-        ("RECON", [("module", "osint", "OSINT Scan"),
-                   ("module", "geosint", "Geospatial"),
-                   ("module", "network", "Network Scan")]),
-        ("INTEL", [("module", "crypto", "Crypto Intel"),
-                   ("module", "social", "Social Tracker"),
-                   ("module", "metadata", "Metadata")]),
-        ("SYSTEM", [("module", "password", "Password Toolkit")]),
-    ]},
-    {"title": "NETWORK & OSINT", "cols": [
+    {"title": "TOOLS", "cols": [
+        ("MODULES", [("module", "osint", "OSINT Scan"),
+                     ("module", "geosint", "Geospatial"),
+                     ("module", "network", "Network Scan"),
+                     ("module", "crypto", "Crypto Intel"),
+                     ("module", "social", "Social Tracker"),
+                     ("module", "metadata", "Metadata"),
+                     ("module", "password", "Password Toolkit")]),
         ("NETWORK", [("quick", "n_myip", "Show My IP"),
                      ("quick", "n_ping", "IP Pinger"),
                      ("quick", "n_ports", "Port Scanner"),
@@ -88,8 +86,6 @@ MENU_PAGES = [
                      ("quick", "g_addr", "Forward Geocode"),
                      ("quick", "g_wifi", "WiFi Lookup"),
                      ("quick", "g_cell", "Cell Lookup")]),
-    ]},
-    {"title": "INTEL & FILES", "cols": [
         ("CRYPTO", [("quick", "c_addr", "Address Intel"),
                     ("quick", "c_tx", "Transaction Intel"),
                     ("quick", "c_entity", "Entity Search")]),
@@ -241,7 +237,9 @@ class VortexOSINT:
         parser.add_argument('--no-banner', action='store_true',
                             help='Disable ASCII banner')
         parser.add_argument('--no-color', action='store_true',
-                            help='Disable colored output')
+                            help='Disable colored output (already the default)')
+        parser.add_argument('--color', action='store_true',
+                            help='Force colored output (rich panels, ANSI)')
         parser.add_argument('--verbose', '-V', action='count', default=0,
                             help='Increase verbosity (-V, -VV, -VVV)')
         parser.add_argument('--output', '-o', type=str,
@@ -445,8 +443,9 @@ class VortexOSINT:
     def run(self, args: Optional[list] = None) -> int:
         """Run the CLI application."""
         raw = list(args) if args is not None else sys.argv[1:]
-        # Honor --no-color even for --help (parsed before the flag is applied).
-        if '--no-color' in raw:
+        # Monochrome by default; --color opts back into rich/ANSI output.
+        # Applied before parsing so --help is plain too.
+        if '--color' not in raw:
             ui.set_plain_mode(True)
 
         self.args = self.parser.parse_args(args)
@@ -587,17 +586,14 @@ class VortexOSINT:
         return 0
 
     def _interactive_loop(self) -> int:
-        """Retro paged menu loop. Returns when the user quits."""
-        page = 0
-        npages = len(MENU_PAGES)
+        """Single-page retro menu loop. Returns when the user quits."""
         ui.show_retro_title()
+        cols = self._numbered_page(0)
+        ui.show_retro_single(
+            [(header, [(num, label) for num, _k, _r, label in cells])
+             for header, cells in cols])
+        ui.show_retro_nav(False, False)
         while True:
-            cols = self._numbered_page(page)
-            ui.show_retro_page(
-                MENU_PAGES[page]["title"],
-                [(header, [(num, label) for num, _k, _r, label in cells])
-                 for header, cells in cols])
-            ui.show_retro_nav(page < npages - 1, page > 0)
             try:
                 raw = ui.retro_input()
             except KeyboardInterrupt:
@@ -608,17 +604,17 @@ class VortexOSINT:
                 return 0
             token = raw.strip().lower()
             if token in ("e", "exit", "q", "quit", "0"):
-                ui.info("A bientot.")
+                print("A bientot.")
                 return 0
-            if token in ("n", "next") and page < npages - 1:
-                page += 1
-                continue
-            if token in ("b", "back") and page > 0:
-                page -= 1
+            if token in ("menu", "list", "m", "l"):
+                cols = self._numbered_page(0)
+                ui.show_retro_single(
+                    [(header, [(num, label) for num, _k, _r, label in cells])
+                     for header, cells in cols])
                 continue
             found = self._find_entry(token)
             if found is None:
-                ui.warning("Choix inconnu — numero, nom, N/B/E.")
+                print("Choix inconnu — numero, nom, menu, E.")
                 continue
             kind, ref = found
             try:
@@ -633,7 +629,6 @@ class VortexOSINT:
             except (EOFError, KeyboardInterrupt):
                 print()
                 ui.info("Retour au menu.")
-                page = 0
                 continue
             except Exception as e:
                 if getattr(self.args, 'verbose', 0):
@@ -646,7 +641,6 @@ class VortexOSINT:
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 0
-            page = 0
 
     # -- per-module guided prompts ------------------------------------
 

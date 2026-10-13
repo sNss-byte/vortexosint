@@ -65,7 +65,7 @@ vortexosint --menu                 # Force the interactive menu
 vortexosint --help                 # Show help
 vortexosint --version              # Show version
 vortexosint --no-banner            # Disable ASCII banner
-vortexosint --no-color             # Disable colored output
+vortexosint --color                # Force colored output (default: plain)
 vortexosint -V                     # Verbose output
 vortexosint -o results.json        # Save output to file
 vortexosint --format json|txt|csv  # Output format

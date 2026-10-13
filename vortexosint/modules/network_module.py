@@ -29,18 +29,13 @@ def run(args: argparse.Namespace) -> int:
         print(f"\n{Colors.CYAN}[*] Pinging: {Colors.BOLD}{args.ping}{Colors.RESET}")
         results['ping'] = ping_host(args.ping)
 
-    # Handle ASN lookup
-    if args.asn:
-        print(f"\n{Colors.CYAN}[*] Looking up ASN: {Colors.BOLD}{args.asn}{Colors.RESET}")
-        results['asn'] = lookup_asn(args.asn)
-
     # Handle target scanning
     if args.target:
         print(f"\n{Colors.CYAN}[*] Scanning target: {Colors.BOLD}{args.target}{Colors.RESET}")
         results['scan'] = scan_target(args.target, args)
 
     if not results:
-        print(f"{Colors.RED}[!] Nothing to do. Use --target, --asn, --my-ip or --ping{Colors.RESET}")
+        print(f"{Colors.RED}[!] Nothing to do. Use --target, --my-ip or --ping{Colors.RESET}")
         return 1
 
     # Output results
@@ -122,21 +117,6 @@ def ping_host(host: str, count: int = 4) -> Dict[str, Any]:
     return result
 
 
-def lookup_asn(asn: str) -> Dict[str, Any]:
-    """Lookup ASN information."""
-    print(f"  {Colors.YELLOW}[~] Querying ASN database...{Colors.RESET}")
-    # TODO: Implement actual ASN lookup (whois, RADB, etc.)
-    return {
-        'asn': asn,
-        'name': 'Google LLC',
-        'country': 'US',
-        'routes': ['8.8.8.0/24', '8.8.4.0/24', '142.250.0.0/16'],
-        'peers': ['AS174', 'AS2914', 'AS3356', 'AS6939'],
-        'upstreams': [],
-        'downstreams': [],
-    }
-
-
 def scan_target(target: str, args: argparse.Namespace) -> Dict[str, Any]:
     """Scan target network."""
     findings = {
@@ -146,28 +126,14 @@ def scan_target(target: str, args: argparse.Namespace) -> Dict[str, Any]:
         'results': [],
     }
 
-    # TODO: Implement actual port scanning (nmap, masscan, python-nmap, etc.)
-    # This is a stub
     ports = findings['ports']
-    for port in ports[:20]:  # Limit for demo
+    for port in ports:
         result = scan_port(target, port, args.scan_type)
-        if result['state'] == 'open':
-            findings['results'].append(result)
+        findings['results'].append(result)
 
-    # Additional scans
-    if args.banner_grab:
-        print(f"  {Colors.YELLOW}[~] Grabbing banners...{Colors.RESET}")
-        for result in findings['results']:
-            result['banner'] = grab_banner(target, result['port'])
-
-    if args.os_detect:
+    if getattr(args, "os_detect", False):
         print(f"  {Colors.YELLOW}[~] Detecting OS...{Colors.RESET}")
         findings['os'] = detect_os(target)
-
-    if args.service_detect:
-        print(f"  {Colors.YELLOW}[~] Detecting services...{Colors.RESET}")
-        for result in findings['results']:
-            result['service'] = detect_service(target, result['port'])
 
     return findings
 
@@ -195,14 +161,22 @@ def parse_ports(ports_arg: str) -> List[int]:
 
 
 def scan_port(target: str, port: int, scan_type: str) -> Dict[str, Any]:
-    """Scan a single port (stub)."""
-    # TODO: Implement actual port scanning
-    import random
-    common_open = [22, 80, 443, 3306, 5432, 6379, 8080, 8443]
-    state = 'open' if port in common_open else ('filtered' if random.random() > 0.7 else 'closed')
+    """TCP connect scan (stdlib, no root needed). Honest states only."""
+    import socket
+    if scan_type == 'udp':
+        return {'port': port, 'protocol': 'udp', 'state': 'unsupported',
+                'service': get_service_name(port),
+                'note': 'UDP scan supprimé (résultats factices avant)'}
+    try:
+        with socket.create_connection((target, port), timeout=1.5):
+            state = 'open'
+    except socket.timeout:
+        state = 'filtered'
+    except (ConnectionRefusedError, OSError):
+        state = 'closed'
     return {
         'port': port,
-        'protocol': 'tcp' if scan_type != 'udp' else 'udp',
+        'protocol': 'tcp',
         'state': state,
         'service': get_service_name(port),
     }
@@ -222,19 +196,6 @@ def get_service_name(port: int) -> str:
         10000: 'ndmp', 27017: 'mongodb',
     }
     return services.get(port, 'unknown')
-
-
-def grab_banner(target: str, port: int) -> str:
-    """Grab banner from open port (stub)."""
-    # TODO: Implement actual banner grabbing
-    banners = {
-        22: 'SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1',
-        80: 'nginx/1.18.0 (Ubuntu)',
-        443: 'nginx/1.18.0 (Ubuntu)',
-        3306: '8.0.33-0ubuntu0.20.04.2',
-        5432: 'PostgreSQL 14.5 (Ubuntu 14.5-0ubuntu0.22.04.1)',
-    }
-    return banners.get(port, '')
 
 
 def detect_os(target: str) -> Dict[str, Any]:
@@ -333,17 +294,6 @@ def detect_os(target: str) -> Dict[str, Any]:
         'details': f'TTL={ttl} (initial guess {initial}, ~{hops} hops)',
         'method': 'ttl',
         'ttl': ttl,
-    }
-
-
-def detect_service(target: str, port: int) -> Dict[str, Any]:
-    """Detect service version (stub)."""
-    # TODO: Implement actual service detection
-    return {
-        'name': get_service_name(port),
-        'version': 'unknown',
-        'product': 'unknown',
-        'extrainfo': '',
     }
 
 

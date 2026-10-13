@@ -127,16 +127,12 @@ def divider():
 # ---------------------------------------------------------------------------
 
 LOGO = r"""
-__     __         _
-\ \   / /__  _ __| |_ _____  __
- \ \ / / _ \| '__| __/ _ \ \/ /
-  \ V / (_) | |  | ||  __/>  <
-   \_/ \___/|_|   \__\___/_/\_\
-       ___  ____ ___ _   _ _____
-      / _ \/ ___|_ _| \ | |_   _|
-     | | | \___ \| ||  \| | | |
-     | |_| |___) | || |\  | | |
-      \___/|____/___|_| \_| |_|
+//  \  /   \  /   ____    _____    _______   ______  __   __
+//   \  \ /  /   / __ \  |  __ \  |__   __| |  ____| \ \ / /
+//    \  V  /   | |  | | | |__) |    | |    | |__     \ V /
+//     >   <    | |  | | |  _  /     | |    |  __|     > <
+//    /  .  \   | |__| | | | \ \     | |    | |____   / . \
+//   /__/ \__\   \____/  |_|  \_\    |_|    |______| /_/ \_\
 """
 
 TAGLINE = "Multi-tool OSINT / GEOSINT reconnaissance framework"
@@ -336,17 +332,10 @@ RETRO_LINK = "https://github.com/sNss-byte/vortexosint"
 
 
 def show_retro_title():
-    """Centered magenta title block."""
-    console = get_console()
-    lines = ["VortexOSINT Multi-Tool", f"[{RETRO_LINK}]"]
-    if console is not None:
-        width = console.width or 80
-        for line in lines:
-            console.print(line.center(width), style="magenta", markup=False,
-                          highlight=False)
-    else:
-        print(Colors.cyan("VortexOSINT Multi-Tool".center(70)))
-        print(Colors.dim(f"[{RETRO_LINK}]".center(70)))
+    """Centered plain title block (always monochrome)."""
+    print()
+    print("VortexOSINT Multi-Tool".center(70))
+    print(f"[{RETRO_LINK}]".center(70))
 
 
 def _retro_entries(cells):
@@ -417,9 +406,19 @@ def show_retro_nav(has_next, has_back):
 
 
 def retro_input():
-    """Kali-style prompt. Returns stripped input, or None on EOF."""
-    prompt = f"{Colors.GREEN}(vortex)-[~/menu]$ {Colors.RESET}"
+    """Plain prompt. Returns stripped input, or None on EOF."""
     try:
-        return input(prompt).strip()
+        return input("(vortex)-[~/menu]$ ").strip()
     except EOFError:
         return None
+
+
+def show_retro_single(groups):
+    """Single-page menu: grouped headers + 3-across entries. Always plain."""
+    print()
+    for header, cells in groups:
+        print(f"-- {header} --")
+        for i in range(0, len(cells), 3):
+            row = cells[i:i + 3]
+            print("".join(f"  [{num}] {label[:19]}".ljust(28) for num, label in row).rstrip())
+        print()
