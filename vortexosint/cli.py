@@ -59,9 +59,9 @@ MODULE_HANDLERS = {
 }
 
 # Retro paged menu: (kind, ref, label) — kind is "module" (guided flow)
-# or "quick" (1-2 prompts then straight to the tool).
+# or "quick" (qid from QUICK_SPECS below).
 MENU_PAGES = [
-    {"title": "VORTEX MODULES", "cols": [
+    {"title": "GUIDED FLOWS", "cols": [
         ("RECON", [("module", "osint", "OSINT Scan"),
                    ("module", "geosint", "Geospatial"),
                    ("module", "network", "Network Scan")]),
@@ -70,14 +70,127 @@ MENU_PAGES = [
                    ("module", "metadata", "Metadata")]),
         ("SYSTEM", [("module", "password", "Password Toolkit")]),
     ]},
-    {"title": "QUICK TOOLS", "cols": [
-        ("NETWORK", [("quick", "myip", "Show My IP"),
-                     ("quick", "ping", "IP Pinger")]),
-        ("OSINT", [("quick", "website", "Website Quick-Info"),
-                   ("quick", "username", "Username Quick-Track")]),
-        ("OTHER", [("quick", "password", "Password Quick-Gen")]),
+    {"title": "NETWORK & OSINT", "cols": [
+        ("NETWORK", [("quick", "n_myip", "Show My IP"),
+                     ("quick", "n_ping", "IP Pinger"),
+                     ("quick", "n_ports", "Port Scanner"),
+                     ("quick", "n_service", "Service Detect"),
+                     ("quick", "n_os", "OS Detect"),
+                     ("quick", "n_asn", "ASN Lookup")]),
+        ("OSINT", [("quick", "o_domain", "Domain Recon"),
+                   ("quick", "o_email", "Email Intel"),
+                   ("quick", "o_phone", "Phone Intel"),
+                   ("quick", "o_user", "Username Search"),
+                   ("quick", "o_ip", "IP Intel"),
+                   ("quick", "o_wayback", "Wayback URLs")]),
+        ("GEOSINT", [("quick", "g_ip", "IP Geolocation"),
+                     ("quick", "g_coords", "Reverse Geocode"),
+                     ("quick", "g_addr", "Forward Geocode"),
+                     ("quick", "g_wifi", "WiFi Lookup"),
+                     ("quick", "g_cell", "Cell Lookup")]),
+    ]},
+    {"title": "INTEL & FILES", "cols": [
+        ("CRYPTO", [("quick", "c_addr", "Address Intel"),
+                    ("quick", "c_tx", "Transaction Intel"),
+                    ("quick", "c_entity", "Entity Search")]),
+        ("SOCIAL", [("quick", "s_user", "Username Tracker"),
+                    ("quick", "s_email", "Email Tracker"),
+                    ("quick", "s_phone", "Phone Tracker")]),
+        ("METADATA", [("quick", "m_file", "File Analysis"),
+                      ("quick", "m_dir", "Directory Batch")]),
+        ("PASSWORD", [("quick", "p_gen", "Quick Password Gen"),
+                      ("quick", "p_phrase", "Passphrase"),
+                      ("quick", "p_check", "Password Audit"),
+                      ("quick", "p_hash", "Hash Password")]),
     ]},
 ]
+
+# Quick tools: prompts are (name, kind, flag, question, default).
+# kind: text | int | confirm | choice((choices, default)).
+# "require" lists prompt names that abort back to menu when empty.
+QUICK_SPECS = {
+    "n_myip": {"module": "network", "base": ["network", "--my-ip"], "prompts": []},
+    "n_ping": {"module": "network", "base": ["network"],
+               "prompts": [("host", "text", "--ping", "Hote ou IP", "8.8.8.8")],
+               "require": ["host"]},
+    "n_ports": {"module": "network", "base": ["network"],
+                "prompts": [("target", "text", "--target", "Cible (IP/hote)", ""),
+                            ("ports", "text", "--ports", "Ports", "top100")],
+                "require": ["target"]},
+    "n_service": {"module": "network", "base": ["network", "--service-detect", "--banner-grab"],
+                  "prompts": [("target", "text", "--target", "Cible (IP/hote)", "")],
+                  "require": ["target"]},
+    "n_os": {"module": "network", "base": ["network", "--os-detect"],
+             "prompts": [("target", "text", "--target", "Cible (IP/hote)", "")],
+             "require": ["target"]},
+    "n_asn": {"module": "network", "base": ["network"],
+              "prompts": [("asn", "text", "--asn", "ASN (ex: AS15169)", "")],
+              "require": ["asn"]},
+    "o_domain": {"module": "osint", "base": ["osint"],
+                 "prompts": [("domain", "text", "--domain", "Domaine", "")],
+                 "require": ["domain"]},
+    "o_email": {"module": "osint", "base": ["osint"],
+                "prompts": [("email", "text", "--email", "Email", "")],
+                "require": ["email"]},
+    "o_phone": {"module": "osint", "base": ["osint"],
+                "prompts": [("phone", "text", "--phone", "Telephone", "")],
+                "require": ["phone"]},
+    "o_user": {"module": "osint", "base": ["osint"],
+               "prompts": [("username", "text", "--username", "Pseudo", "")],
+               "require": ["username"]},
+    "o_ip": {"module": "osint", "base": ["osint"],
+             "prompts": [("ip", "text", "--ip", "Adresse IP", "")],
+             "require": ["ip"]},
+    "g_ip": {"module": "geosint", "base": ["geosint"],
+             "prompts": [("ip", "text", "--ip", "Adresse IP", "")],
+             "require": ["ip"]},
+    "g_coords": {"module": "geosint", "base": ["geosint"],
+                 "prompts": [("coords", "text", "--coords", 'Coords "lat,lon"', "")],
+                 "require": ["coords"]},
+    "g_addr": {"module": "geosint", "base": ["geosint"],
+               "prompts": [("address", "text", "--address", "Adresse", "")],
+               "require": ["address"]},
+    "g_wifi": {"module": "geosint", "base": ["geosint"],
+               "prompts": [("wifi", "text", "--wifi", "BSSID WiFi", "")],
+               "require": ["wifi"]},
+    "g_cell": {"module": "geosint", "base": ["geosint"],
+               "prompts": [("cell", "text", "--cell", "Cellule MCC,MNC,LAC,CID", "")],
+               "require": ["cell"]},
+    "c_addr": {"module": "crypto", "base": ["crypto"],
+               "prompts": [("address", "text", "--address", "Adresse crypto", "")],
+               "require": ["address"]},
+    "c_tx": {"module": "crypto", "base": ["crypto"],
+             "prompts": [("tx", "text", "--tx", "Hash transaction", "")],
+             "require": ["tx"]},
+    "c_entity": {"module": "crypto", "base": ["crypto"],
+                 "prompts": [("entity", "text", "--entity", "Entite", "")],
+                 "require": ["entity"]},
+    "s_user": {"module": "social", "base": ["social"],
+               "prompts": [("username", "text", "--username", "Pseudo", "")],
+               "require": ["username"]},
+    "s_email": {"module": "social", "base": ["social"],
+                "prompts": [("email", "text", "--email", "Email", "")],
+                "require": ["email"]},
+    "s_phone": {"module": "social", "base": ["social"],
+                "prompts": [("phone", "text", "--phone", "Telephone", "")],
+                "require": ["phone"]},
+    "m_file": {"module": "metadata", "base": ["metadata"],
+               "prompts": [("fichier", "text", "--file", "Fichier", "")],
+               "require": ["fichier"]},
+    "m_dir": {"module": "metadata", "base": ["metadata"],
+              "prompts": [("dossier", "text", "--dir", "Dossier", ""),
+                          ("recursif", "confirm", "--recursive", "Recursif ?", False)],
+              "require": ["dossier"]},
+    "p_gen": {"module": "password", "base": ["password"],
+              "prompts": [("longueur", "int", "--length", "Longueur", 16),
+                          ("nombre", "int", "--count", "Combien", 3)]},
+    "p_phrase": {"module": "password", "base": ["password", "--passphrase"],
+                 "prompts": [("mots", "int", "--words", "Nombre de mots", 5)]},
+    "p_check": {"module": "password", "base": ["password", "--check"], "prompts": []},
+    "p_hash": {"module": "password", "base": ["password", "--hash"],
+               "prompts": [("algo", "choice", "--algo", "Algorithme",
+                            (["sha256", "sha512", "sha3_256"], "sha256"))]},
+}
 
 
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
@@ -166,6 +279,10 @@ class VortexOSINT:
                                   help='Comma-separated list of sources (default: all)')
         osint_parser.add_argument('--timeout', type=int, default=30,
                                   help='Request timeout in seconds (default: 30)')
+        osint_parser.add_argument('--wayback', action='store_true',
+                                  help='Include archived URLs (Wayback Machine CDX)')
+        osint_parser.add_argument('--wayback-limit', type=int, default=200,
+                                  help='Max archived URLs to fetch (default: 200)')
 
         # GEOSINT Module
         geo_parser = subparsers.add_parser('geosint', help='Geospatial intelligence',
@@ -428,31 +545,46 @@ class VortexOSINT:
         return ns
 
     def _run_quick(self, qid):
-        """Run a quick tool. Returns None to go back to the menu."""
-        if qid == "myip":
-            return MODULE_HANDLERS['network'](self._quick_ns(['network', '--my-ip']))
-        if qid == "ping":
-            host = ui.ask("Hote ou IP a pinger", "8.8.8.8")
-            if not host:
-                return None
-            return MODULE_HANDLERS['network'](self._quick_ns(['network', '--ping', host]))
-        if qid == "website":
-            domain = ui.ask("Domaine ou site", "")
-            if not domain:
-                return None
-            return MODULE_HANDLERS['osint'](self._quick_ns(['osint', '--domain', domain]))
-        if qid == "username":
-            username = ui.ask("Pseudo a traquer", "")
-            if not username:
-                return None
-            return MODULE_HANDLERS['social'](self._quick_ns(['social', '--username', username]))
-        if qid == "password":
-            length = self._ask_int("Longueur", 16)
-            count = self._ask_int("Combien", 3)
-            return MODULE_HANDLERS['password'](
-                self._quick_ns(['password', '--length', str(length), '--count', str(count)]))
-        ui.warning(f"Outil inconnu: {qid}")
-        return None
+        """Run a quick tool from QUICK_SPECS. None = back to menu."""
+        if qid == "o_wayback":
+            return self._quick_wayback()
+        spec = QUICK_SPECS.get(qid)
+        if spec is None:
+            ui.warning(f"Outil inconnu: {qid}")
+            return None
+        argv = list(spec["base"])
+        try:
+            for name, kind, flag, question, default in spec.get("prompts", []):
+                if kind == "confirm":
+                    if ui.ask_yes_no(question, bool(default)):
+                        argv.append(flag)
+                elif kind == "choice":
+                    choices, dflt = default
+                    argv += [flag, ui.ask_choice(question, choices, dflt)]
+                elif kind == "int":
+                    argv += [flag, str(self._ask_int(question, int(default)))]
+                else:
+                    value = ui.ask(question, str(default))
+                    if not value:
+                        if name in spec.get("require", []):
+                            return None
+                        continue
+                    argv += [flag, value]
+        except (EOFError, KeyboardInterrupt):
+            raise
+        return MODULE_HANDLERS[spec["module"]](self._quick_ns(argv))
+
+    def _quick_wayback(self):
+        """Wayback quick tool: direct CDX query + summary (no full recon)."""
+        from vortexosint.modules import osint_module
+        domain = ui.ask("Domaine", "")
+        if not domain:
+            return None
+        limit = self._ask_int("Max URLs", 200)
+        data = osint_module.get_wayback_urls(domain, limit, 30)
+        osint_module.show_wayback(data, domain)
+        ui.divider()
+        return 0
 
     def _interactive_loop(self) -> int:
         """Retro paged menu loop. Returns when the user quits."""
@@ -573,6 +705,8 @@ class VortexOSINT:
             m.deep = ui.ask_yes_no("Reconnaissance approfondie ?", False)
             m.sources = "all"
             m.timeout = self._ask_int("Timeout requêtes (s)", 30)
+            m.wayback = ui.ask_yes_no("Inclure les URLs archivees (Wayback) ?", False)
+            m.wayback_limit = self._ask_int("Max URLs archivees", 200) if m.wayback else 200
         elif key == 'geosint':
             m.ip = ui.ask("Adresse IP", "") or None
             m.coords = ui.ask('Coordonnées "lat,lon"', "") or None

@@ -90,6 +90,10 @@ vortexosint osint -u johndoe --deep
 
 # IP investigation
 vortexosint osint --ip 8.8.8.8
+
+# Archived URLs (Wayback Machine: forgotten files, APIs, backups)
+vortexosint osint --domain example.com --wayback
+vortexosint osint -d example.com --wayback --wayback-limit 500
 ```
 
 ### GEOSINT Module

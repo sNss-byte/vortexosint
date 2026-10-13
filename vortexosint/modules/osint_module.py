@@ -4,6 +4,7 @@ OSINT Module - General OSINT Reconnaissance
 
 import argparse
 import json
+import os
 import sys
 from typing import Dict, Any, List
 from vortexosint.core.colors import Colors
@@ -76,6 +77,9 @@ def investigate_domain(domain: str, args: argparse.Namespace) -> Dict[str, Any]:
         'technologies': detect_technologies(domain),
         'emails': find_emails(domain) if args.deep else [],
         'links': crawl_links(domain) if args.deep else [],
+        'wayback': get_wayback_urls(domain, getattr(args, 'wayback_limit', 200),
+                                    getattr(args, 'timeout', 30))
+        if getattr(args, 'wayback', False) else {},
     }
     return findings
 
@@ -134,6 +138,83 @@ def investigate_ip(ip: str, args: argparse.Namespace) -> Dict[str, Any]:
         'vpn_proxy': detect_vpn_proxy(ip),
     }
     return findings
+
+
+WAYBACK_CDX = "https://web.archive.org/cdx/search/cdx"
+
+INTERESTING_EXTS = {
+    ".js", ".json", ".php", ".asp", ".aspx", ".jsp", ".env", ".bak",
+    ".old", ".sql", ".xml", ".txt", ".pdf", ".zip", ".tar", ".gz",
+    ".config", ".yml", ".yaml", ".log", ".swp",
+}
+INTERESTING_KEYS = ("admin", "login", "api", "config", "backup", "test",
+                    "dev", "staging", "private", ".git/")
+
+
+def get_wayback_urls(domain: str, limit: int = 200, timeout: int = 30) -> Dict[str, Any]:
+    """Query the Wayback CDX API for archived URLs (HTTP 200, deduped)."""
+    print(f"  {Colors.YELLOW}[~] Querying Wayback Machine CDX...{Colors.RESET}")
+    try:
+        import requests
+    except ImportError:
+        print(f"  {Colors.RED}[!] The 'requests' package is required{Colors.RESET}")
+        return {'error': 'requests not installed', 'total': 0, 'urls': []}
+    domain = (domain or "").strip().lower()
+    for prefix in ("http://", "https://"):
+        if domain.startswith(prefix):
+            domain = domain[len(prefix):]
+    domain = domain.split("/")[0]
+    if not domain:
+        return {'error': 'empty domain', 'total': 0, 'urls': []}
+    params = {"url": domain, "matchType": "domain", "output": "json",
+              "filter": "statuscode:200", "collapse": "urlkey",
+              "limit": str(max(1, limit))}
+    try:
+        resp = requests.get(WAYBACK_CDX, params=params, timeout=timeout)
+        if resp.status_code != 200:
+            print(f"  {Colors.RED}[!] Wayback API HTTP {resp.status_code}{Colors.RESET}")
+            return {'error': f'http {resp.status_code}', 'total': 0, 'urls': []}
+        rows = resp.json()
+    except Exception as e:
+        print(f"  {Colors.RED}[!] Wayback query failed: {e}{Colors.RESET}")
+        return {'error': str(e), 'total': 0, 'urls': []}
+    if not rows:
+        return {'total': 0, 'urls': [], 'interesting': [], 'by_extension': {}}
+    body = rows[1:] if rows[0][0] == "urlkey" else rows
+    urls = [row[2] for row in body if len(row) >= 3 and row[2]]
+    by_ext: Dict[str, int] = {}
+    interesting = []
+    for u in urls:
+        path = u.split("?", 1)[0].lower()
+        ext = os.path.splitext(path)[1] or "(none)"
+        by_ext[ext] = by_ext.get(ext, 0) + 1
+        if ext in INTERESTING_EXTS or any(k in path for k in INTERESTING_KEYS):
+            interesting.append(u)
+    interesting = interesting[:50]
+    print(f"  {Colors.GREEN}[+] {len(urls)} archived URLs "
+          f"({len(interesting)} interesting){Colors.RESET}")
+    top_ext = dict(sorted(by_ext.items(), key=lambda kv: -kv[1])[:15])
+    return {'total': len(urls), 'limit': limit, 'urls': urls,
+            'interesting': interesting, 'by_extension': top_ext}
+
+
+def show_wayback(data: Dict[str, Any], domain: str):
+    """Pretty summary for quick mode."""
+    if data.get('error'):
+        print(f"{Colors.RED}[!] Wayback: {data['error']}{Colors.RESET}")
+        return
+    print(f"\n{Colors.CYAN}[*] Wayback Machine — {domain}: "
+          f"{Colors.BOLD}{data['total']} URLs archivees{Colors.RESET}")
+    if data.get('by_extension'):
+        print(f"  {Colors.YELLOW}Top extensions:{Colors.RESET}")
+        for ext, count in list(data['by_extension'].items())[:8]:
+            print(f"    {ext}: {count}")
+    if data.get('interesting'):
+        print(f"  {Colors.YELLOW}Interessantes ({len(data['interesting'])}):{Colors.RESET}")
+        for u in data['interesting'][:30]:
+            print(f"    - {u}")
+    else:
+        print("  " + Colors.dim("Rien de suspect dans cet echantillon."))
 
 
 # --- Helper functions (stubs for actual implementation) ---
