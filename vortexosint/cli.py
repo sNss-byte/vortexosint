@@ -94,7 +94,7 @@ MENU_PAGES = [
                     ("quick", "s_phone", "Phone Tracker")]),
         ("METADATA", [("quick", "m_file", "File Analysis"),
                       ("quick", "m_dir", "Directory Batch")]),
-        ("PASSWORD", [("quick", "p_gen", "Quick Password Gen"),
+        ("PASSWORD", [("quick", "p_gen", "Quick Pass Gen"),
                       ("quick", "p_phrase", "Passphrase"),
                       ("quick", "p_check", "Password Audit"),
                       ("quick", "p_hash", "Hash Password")]),

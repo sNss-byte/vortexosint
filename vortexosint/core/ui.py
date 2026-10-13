@@ -16,6 +16,7 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+    from rich.text import Text
     from rich.prompt import Prompt, Confirm
     from rich import box
 
@@ -332,10 +333,18 @@ RETRO_LINK = "https://github.com/sNss-byte/vortexosint"
 
 
 def show_retro_title():
-    """Centered plain title block (always monochrome)."""
-    print()
-    print("VortexOSINT Multi-Tool".center(70))
-    print(f"[{RETRO_LINK}]".center(70))
+    """Centered title block, blue shades."""
+    console = get_console()
+    if console is not None:
+        width = console.width or 80
+        console.print("VortexOSINT Multi-Tool".center(width),
+                      style="bold bright_blue", markup=False, highlight=False)
+        console.print(f"[{RETRO_LINK}]".center(width),
+                      style="blue", markup=False, highlight=False)
+    else:
+        print(Colors.colorize("VortexOSINT Multi-Tool".center(70),
+                              Colors.BOLD + Colors.BRIGHT_BLUE))
+        print(Colors.colorize(f"[{RETRO_LINK}]".center(70), Colors.BLUE))
 
 
 def _retro_entries(cells):
@@ -400,25 +409,47 @@ def show_retro_nav(has_next, has_back):
     line = "  |- " + " | ".join(parts)
     console = get_console()
     if console is not None:
-        console.print(line, style="red", markup=False, highlight=False)
+        console.print(line, style="blue", markup=False, highlight=False)
     else:
-        print(Colors.red(line))
+        print(Colors.blue(line))
 
 
 def retro_input():
-    """Plain prompt. Returns stripped input, or None on EOF."""
+    """Blue prompt. Returns stripped input, or None on EOF."""
+    prompt = f"{Colors.BRIGHT_BLUE}(vortex)-[~/menu]$ {Colors.RESET}"
     try:
-        return input("(vortex)-[~/menu]$ ").strip()
+        return input(prompt).strip()
     except EOFError:
         return None
 
 
 def show_retro_single(groups):
-    """Single-page menu: grouped headers + 3-across entries. Always plain."""
-    print()
+    """Single-page menu in blue: framed panel (rich) or ASCII box (fallback)."""
+    console = get_console()
+    if console is None:
+        width = 74
+        print("+" + "-" * width + "+")
+        for header, cells in groups:
+            print(f"| -- {header} --".ljust(width + 1) + "|")
+            for i in range(0, len(cells), 3):
+                row = cells[i:i + 3]
+                line = "".join(f"  [{num}] {label[:17]}".ljust(24)
+                               for num, label in row)
+                print("|" + line.ljust(width) + "|")
+        print("+" + "-" * width + "+")
+        return
+    body = Text()
+    first = True
     for header, cells in groups:
-        print(f"-- {header} --")
+        if not first:
+            body.append("\n")
+        first = False
+        body.append(f"-- {header} --\n", style="bold blue")
         for i in range(0, len(cells), 3):
-            row = cells[i:i + 3]
-            print("".join(f"  [{num}] {label[:19]}".ljust(28) for num, label in row).rstrip())
-        print()
+            for num, label in cells[i:i + 3]:
+                body.append("  [")
+                body.append(num, style="bold cyan")
+                body.append(f"] {label[:17]}".ljust(24), style="bright_blue")
+            body.append("\n")
+    console.print(Panel(body, title="TOOLS", border_style="blue",
+                        box=_box(), padding=(0, 2)))

@@ -1,0 +1,35 @@
+┌───────────────────────────────────────────── TOOLS ──────────────────────────────────────────────┐
+│                                                                                                  │
+│  -- MODULES --                                                                                   │
+│    [01] OSINT Scan              [02] Geospatial              [03] Network Scan                   │
+│    [04] Crypto Intel            [05] Social Tracker          [06] Metadata                       │
+│    [07] Password Toolkit                                                                         │
+│                                                                                                  │
+│  -- NETWORK --                                                                                   │
+│    [08] Show My IP              [09] IP Pinger               [10] Port Scanner                   │
+│    [11] Service Detect          [12] OS Detect               [13] ASN Lookup                     │
+│                                                                                                  │
+│  -- OSINT --                                                                                     │
+│    [14] Domain Recon            [15] Email Intel             [16] Phone Intel                    │
+│    [17] Username Search         [18] IP Intel                [19] Wayback URLs                   │
+│                                                                                                  │
+│  -- GEOSINT --                                                                                   │
+│    [20] IP Geolocation          [21] Reverse Geocode         [22] Forward Geocode                │
+│    [23] WiFi Lookup             [24] Cell Lookup                                                 │
+│                                                                                                  │
+│  -- CRYPTO --                                                                                    │
+│    [25] Address Intel           [26] Transaction Intel       [27] Entity Search                  │
+│                                                                                                  │
+│  -- SOCIAL --                                                                                    │
+│    [28] Username Tracker        [29] Email Tracker           [30] Phone Tracker                  │
+│                                                                                                  │
+│  -- METADATA --                                                                                  │
+│    [31] File Analysis           [32] Directory Batch                                             │
+│                                                                                                  │
+│  -- PASSWORD --                                                                                  │
+│    [33] Quick Pass Gen          [34] Passphrase              [35] Password Audit                 │
+│    [36] Hash Password                                                                            │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
