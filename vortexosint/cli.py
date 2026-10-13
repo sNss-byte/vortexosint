@@ -58,6 +58,27 @@ MODULE_HANDLERS = {
     'password': password_module.run,
 }
 
+# Retro paged menu: (kind, ref, label) — kind is "module" (guided flow)
+# or "quick" (1-2 prompts then straight to the tool).
+MENU_PAGES = [
+    {"title": "VORTEX MODULES", "cols": [
+        ("RECON", [("module", "osint", "OSINT Scan"),
+                   ("module", "geosint", "Geospatial"),
+                   ("module", "network", "Network Scan")]),
+        ("INTEL", [("module", "crypto", "Crypto Intel"),
+                   ("module", "social", "Social Tracker"),
+                   ("module", "metadata", "Metadata")]),
+        ("SYSTEM", [("module", "password", "Password Toolkit")]),
+    ]},
+    {"title": "QUICK TOOLS", "cols": [
+        ("NETWORK", [("quick", "myip", "Show My IP"),
+                     ("quick", "ping", "IP Pinger")]),
+        ("OSINT", [("quick", "website", "Website Quick-Info"),
+                   ("quick", "username", "Username Quick-Track")]),
+        ("OTHER", [("quick", "password", "Password Quick-Gen")]),
+    ]},
+]
+
 
 class ColoredHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """argparse formatter with colorized section headings."""
@@ -91,6 +112,7 @@ class VortexOSINT:
                    '  vortexosint social --username johndoe\n'
                    '  vortexosint metadata --file document.pdf\n'
                    '  vortexosint crypto --address 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\n'
+                   '  vortexosint password --length 20 --count 5\n'
                    '\n'
                    'Run without a MODULE to open the interactive menu.',
             formatter_class=ColoredHelpFormatter,
@@ -177,9 +199,15 @@ class VortexOSINT:
                                                   '  vortexosint network --target 192.168.1.0/24\n'
                                                   '  vortexosint network --target example.com --ports 80,443,8080\n'
                                                   '  vortexosint network --target 10.0.0.1 --scan-type syn\n'
-                                                  '  vortexosint network --asn AS15169')
-        net_parser.add_argument('--target', '-t', type=str, required=True,
+                                                  '  vortexosint network --asn AS15169\n'
+                                                  '  vortexosint network --my-ip\n'
+                                                  '  vortexosint network --ping 8.8.8.8')
+        net_parser.add_argument('--target', '-t', type=str, required=False, default=None,
                                 help='Target IP, CIDR, or hostname')
+        net_parser.add_argument('--my-ip', action='store_true',
+                                help='Show this machine public IP and exit')
+        net_parser.add_argument('--ping', type=str, default=None, metavar='HOST',
+                                help='ICMP ping a host (no root needed)')
         net_parser.add_argument('--ports', '-p', type=str, default='top100',
                                 help='Ports to scan (default: top100, e.g., 80,443,1-1000)')
         net_parser.add_argument('--scan-type', '-s', choices=['syn', 'connect', 'udp', 'ack'],
@@ -351,38 +379,129 @@ class VortexOSINT:
     # Interactive menu
     # ------------------------------------------------------------------
 
+    def _menu_index(self):
+        """Flat [(num, kind, ref, label)] across pages. Numbers start at 01."""
+        entries = []
+        i = 0
+        for page in MENU_PAGES:
+            for _header, items in page["cols"]:
+                for kind, ref, label in items:
+                    i += 1
+                    entries.append((f"{i:02d}", kind, ref, label))
+        return entries
+
+    def _numbered_page(self, page_idx):
+        """Numbered cells for one page: [(header, [(num, kind, ref, label)])]."""
+        start = sum(len(items)
+                    for pg in MENU_PAGES[:page_idx]
+                    for _h, items in pg["cols"])
+        num = start
+        cols = []
+        for header, items in MENU_PAGES[page_idx]["cols"]:
+            cells = []
+            for kind, ref, label in items:
+                num += 1
+                cells.append((f"{num:02d}", kind, ref, label))
+            cols.append((header, cells))
+        return cols
+
+    def _find_entry(self, token):
+        """Map menu input to (kind, ref). None = unknown."""
+        t = (token or "").strip().lower()
+        if not t:
+            return None
+        for num, kind, ref, label in self._menu_index():
+            if t == num or (t.isdigit() and t == num.lstrip("0")):
+                return (kind, ref)
+            keys = {ref, label.lower(),
+                    label.lower().replace(" ", "").replace("-", "")}
+            if t in keys:
+                return (kind, ref)
+        return None
+
+    def _quick_ns(self, argv):
+        """Namespace for quick tools: real CLI args + quiet banner."""
+        ns = self.parser.parse_args(argv)
+        ns.no_banner = True
+        ns.no_color = getattr(self.args, 'no_color', False)
+        ns.verbose = getattr(self.args, 'verbose', 0)
+        return ns
+
+    def _run_quick(self, qid):
+        """Run a quick tool. Returns None to go back to the menu."""
+        if qid == "myip":
+            return MODULE_HANDLERS['network'](self._quick_ns(['network', '--my-ip']))
+        if qid == "ping":
+            host = ui.ask("Hote ou IP a pinger", "8.8.8.8")
+            if not host:
+                return None
+            return MODULE_HANDLERS['network'](self._quick_ns(['network', '--ping', host]))
+        if qid == "website":
+            domain = ui.ask("Domaine ou site", "")
+            if not domain:
+                return None
+            return MODULE_HANDLERS['osint'](self._quick_ns(['osint', '--domain', domain]))
+        if qid == "username":
+            username = ui.ask("Pseudo a traquer", "")
+            if not username:
+                return None
+            return MODULE_HANDLERS['social'](self._quick_ns(['social', '--username', username]))
+        if qid == "password":
+            length = self._ask_int("Longueur", 16)
+            count = self._ask_int("Combien", 3)
+            return MODULE_HANDLERS['password'](
+                self._quick_ns(['password', '--length', str(length), '--count', str(count)]))
+        ui.warning(f"Outil inconnu: {qid}")
+        return None
+
     def _interactive_loop(self) -> int:
-        """Guided menu loop. Returns when the user quits."""
-        n = len(ui.MODULE_ORDER)
-        print("Mode interactif — 'q' pour quitter.\n")
-        ui.show_modules_table()
+        """Retro paged menu loop. Returns when the user quits."""
+        page = 0
+        npages = len(MENU_PAGES)
+        ui.show_retro_title()
         while True:
+            cols = self._numbered_page(page)
+            ui.show_retro_page(
+                MENU_PAGES[page]["title"],
+                [(header, [(num, label) for num, _k, _r, label in cells])
+                 for header, cells in cols])
+            ui.show_retro_nav(page < npages - 1, page > 0)
             try:
-                choice = ui.ask(f"Module (1-{n} ou nom)")
-            except (EOFError, KeyboardInterrupt):
+                raw = ui.retro_input()
+            except KeyboardInterrupt:
                 print()
                 return 0
-            key, quit_requested = self._resolve_choice(choice)
-            if quit_requested:
-                ui.info("À bientôt.")
+            if raw is None:
+                print()
                 return 0
-            if key is None:
-                ui.warning(f"Choix inconnu — tape 1-{len(ui.MODULE_ORDER)} ou le nom "
-                           f"du module (q pour quitter).")
+            token = raw.strip().lower()
+            if token in ("e", "exit", "q", "quit", "0"):
+                ui.info("A bientot.")
+                return 0
+            if token in ("n", "next") and page < npages - 1:
+                page += 1
                 continue
+            if token in ("b", "back") and page > 0:
+                page -= 1
+                continue
+            found = self._find_entry(token)
+            if found is None:
+                ui.warning("Choix inconnu — numero, nom, N/B/E.")
+                continue
+            kind, ref = found
             try:
-                ns = self._prompt_module_args(key)
+                if kind == "module":
+                    ns = self._prompt_module_args(ref)
+                    if ns is None:
+                        continue
+                    MODULE_HANDLERS[ref](ns)
+                else:
+                    if self._run_quick(ref) is None:
+                        continue
             except (EOFError, KeyboardInterrupt):
                 print()
                 ui.info("Retour au menu.")
                 continue
-            if ns is None:  # user went back / missing required input
-                continue
-            try:
-                MODULE_HANDLERS[key](ns)
-            except KeyboardInterrupt:
-                print()
-                ui.warning("Interrompu — retour au menu.")
             except Exception as e:
                 if getattr(self.args, 'verbose', 0):
                     import traceback
@@ -394,23 +513,6 @@ class VortexOSINT:
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 0
-            ui.show_modules_table()
-
-    @staticmethod
-    def _resolve_choice(raw: str):
-        """Map menu input to (module_key, quit_requested)."""
-        text = (raw or "").strip().lower()
-        if text in ("q", "quit", "exit", "0"):
-            return None, True
-        if text.isdigit():
-            idx = int(text) - 1
-            if 0 <= idx < len(ui.MODULE_ORDER):
-                return ui.MODULE_ORDER[idx], False
-            return None, False
-        for k in ui.MODULE_ORDER:
-            if text == k or text == ui.MODULES[k]["label"].lower():
-                return k, False
-        return None, False
 
     # -- per-module guided prompts ------------------------------------
 
@@ -484,11 +586,13 @@ class VortexOSINT:
             m.map = ui.ask_yes_no("Générer une carte HTML ?", False)
             m.provider = ui.ask_choice("Fournisseur", ["all", "ipapi", "ipinfo", "geojs"], "all")
         elif key == 'network':
-            m.target = ui.ask("Cible (IP, CIDR ou hôte) *", "") or None
-            if not m.target:
-                ui.error("Cible requise — retour au menu.")
-                return None
+            m.target = ui.ask("Cible (IP, CIDR ou hote, vide = ignorer)", "") or None
             m.asn = ui.ask("ASN (vide = ignorer)", "") or None
+            m.my_ip = ui.ask_yes_no("Afficher ton IP publique ?", False)
+            m.ping = ui.ask("Hote a pinger (vide = ignorer)", "") or None
+            if not any([m.target, m.asn, m.my_ip, m.ping]):
+                ui.error("Aucune cible — retour au menu.")
+                return None
             m.ports = ui.ask("Ports", "top100") or "top100"
             m.scan_type = ui.ask_choice("Type de scan", ["syn", "connect", "udp", "ack"], "syn")
             m.banner_grab = ui.ask_yes_no("Banner grabbing ?", False)

@@ -10,6 +10,7 @@ status messages, tables and interactive prompts.
 """
 
 import sys
+import shutil
 
 try:
     from rich.console import Console
@@ -325,3 +326,100 @@ def pause():
         input("\nAppuie sur Entrée pour continuer...")
     except EOFError:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Retro menu (paged, numbered, Kali-style prompt)
+# ---------------------------------------------------------------------------
+
+RETRO_LINK = "https://github.com/sNss-byte/vortexosint"
+
+
+def show_retro_title():
+    """Centered magenta title block."""
+    console = get_console()
+    lines = ["VortexOSINT Multi-Tool", f"[{RETRO_LINK}]"]
+    if console is not None:
+        width = console.width or 80
+        for line in lines:
+            console.print(line.center(width), style="magenta", markup=False,
+                          highlight=False)
+    else:
+        print(Colors.cyan("VortexOSINT Multi-Tool".center(70)))
+        print(Colors.dim(f"[{RETRO_LINK}]".center(70)))
+
+
+def _retro_entries(cells):
+    """Format [(num, label)] cells for one category column."""
+    return "\n".join(f"[{n}] {label}" for n, label in cells)
+
+
+def show_retro_page(title, columns):
+    """Render one menu page.
+
+    columns: list of (header, [(num_str, label), ...]).
+    Numbers are global across pages (01, 02, ...).
+    """
+    console = get_console()
+    if console is not None:
+        table = Table(title=title, box=_box(), border_style="magenta",
+                      header_style="bold magenta", show_lines=False)
+        for header, _cells in columns:
+            table.add_column(header, style="red", overflow="fold")
+        table.add_row(*[_retro_entries(cells) for _header, cells in columns])
+        console.print(table)
+        return
+
+    # Plain ASCII fallback (cp1252-safe).
+    try:
+        term_width = shutil.get_terminal_size().columns
+    except Exception:
+        term_width = 80
+    col_w = 26
+    ncols = len(columns)
+    if term_width < ncols * (col_w + 1):
+        # Stack vertically on narrow terminals.
+        for header, cells in columns:
+            print(f"+{'-' * col_w}+")
+            print(f"|{header.center(col_w)}|")
+            print(f"+{'-' * col_w}+")
+            for num, label in cells:
+                print(f"  [{num}] {label}")
+            print()
+        return
+    print("+" + "+".join(["-" * col_w] * ncols) + "+")
+    print("|" + "|".join(h.center(col_w) for h, _c in columns) + "|")
+    print("+" + "+".join(["-" * col_w] * ncols) + "+")
+    max_rows = max(len(cells) for _h, cells in columns)
+    for i in range(max_rows):
+        row = []
+        for _h, cells in columns:
+            cell = f"[{cells[i][0]}] {cells[i][1]}" if i < len(cells) else ""
+            row.append(" " + cell[:col_w - 1].ljust(col_w - 1))
+        print("|" + "|".join(row) + "|")
+    print("+" + "+".join(["-" * col_w] * ncols) + "+")
+
+
+def show_retro_nav(has_next, has_back):
+    """Red navigation hints under the page."""
+    parts = []
+    if has_back:
+        parts.append("[B] Back")
+    if has_next:
+        parts.append("[N] Next")
+    parts.append("[E] Exit")
+    line = "  |- " + " | ".join(parts)
+    console = get_console()
+    if console is not None:
+        console.print(line, style="red", markup=False, highlight=False)
+    else:
+        print(Colors.red(line))
+
+
+def retro_input():
+    """Kali-style prompt. Returns stripped input, or None on EOF."""
+    prompt = f"{Colors.GREEN}(vortex)-[~/menu]$ {Colors.RESET}"
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        return None

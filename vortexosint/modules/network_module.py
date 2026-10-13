@@ -4,6 +4,9 @@ Network Module - Network Reconnaissance
 
 import argparse
 import json
+import re
+import shutil
+import subprocess
 import sys
 from typing import Dict, Any, List
 from vortexosint.core.colors import Colors
@@ -16,6 +19,16 @@ def run(args: argparse.Namespace) -> int:
 
     results = {}
 
+    # Handle public IP lookup
+    if getattr(args, "my_ip", False):
+        print(f"\n{Colors.CYAN}[*] Resolving public IP...{Colors.RESET}")
+        results['my_ip'] = show_my_ip()
+
+    # Handle ICMP ping
+    if getattr(args, "ping", None):
+        print(f"\n{Colors.CYAN}[*] Pinging: {Colors.BOLD}{args.ping}{Colors.RESET}")
+        results['ping'] = ping_host(args.ping)
+
     # Handle ASN lookup
     if args.asn:
         print(f"\n{Colors.CYAN}[*] Looking up ASN: {Colors.BOLD}{args.asn}{Colors.RESET}")
@@ -27,12 +40,86 @@ def run(args: argparse.Namespace) -> int:
         results['scan'] = scan_target(args.target, args)
 
     if not results:
-        print(f"{Colors.RED}[!] No target or ASN specified{Colors.RESET}")
+        print(f"{Colors.RED}[!] Nothing to do. Use --target, --asn, --my-ip or --ping{Colors.RESET}")
         return 1
 
     # Output results
     output_results(results, args)
     return 0
+
+
+def show_my_ip() -> Dict[str, Any]:
+    """Display the machine's public IP via several providers."""
+    try:
+        import requests
+    except ImportError:
+        print(f"  {Colors.RED}[!] The 'requests' package is required{Colors.RESET}")
+        return {'error': 'requests not installed'}
+
+    endpoints = [
+        ("https://api.ipify.org?format=json", "json"),
+        ("https://ifconfig.me/ip", "text"),
+        ("https://ident.me", "text"),
+    ]
+    for url, kind in endpoints:
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                continue
+            ip = resp.json()["ip"].strip() if kind == "json" else resp.text.strip()
+            if ip:
+                print(f"  {Colors.GREEN}[+] Public IP: {Colors.BOLD}{ip}{Colors.RESET}")
+                print(Colors.dim(f"    via {url}"))
+                return {'ip': ip, 'source': url}
+        except Exception:
+            continue
+    print(f"  {Colors.RED}[!] Could not resolve public IP (offline?){Colors.RESET}")
+    return {'error': 'unreachable'}
+
+
+def ping_host(host: str, count: int = 4) -> Dict[str, Any]:
+    """ICMP ping using the system binary (no root needed)."""
+    binary = shutil.which("ping")
+    if not binary:
+        print(f"  {Colors.RED}[!] No 'ping' binary found on this system{Colors.RESET}")
+        return {'host': host, 'error': 'ping binary not found'}
+
+    flag = "-n" if sys.platform.startswith("win") else "-c"
+    print(f"  {Colors.YELLOW}[~] Pinging {host} x{count}...{Colors.RESET}")
+    try:
+        proc = subprocess.run([binary, flag, str(count), host],
+                              capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        print(f"  {Colors.RED}[!] Ping timed out{Colors.RESET}")
+        return {'host': host, 'error': 'timeout'}
+    except Exception as e:
+        print(f"  {Colors.RED}[!] Ping failed: {e}{Colors.RESET}")
+        return {'host': host, 'error': str(e)}
+
+    out = proc.stdout or ""
+    loss, avg = None, None
+    m = (re.search(r"(\d+)\s*%\s*(?:loss|perte|packet loss)", out, re.IGNORECASE)
+         or re.search(r"perte[^\d]*(\d+)\s*%", out, re.IGNORECASE))
+    if m:
+        loss = int(m.group(1))
+    m = re.search(r"(?:Average|Moyenne)\s*=\s*(\d+)\s*ms", out, re.IGNORECASE)
+    if m:
+        avg = float(m.group(1))
+    else:
+        m = re.search(r"=\s*([\d.]+)/([\d.]+)/([\d.]+)", out)
+        if m:
+            avg = float(m.group(2))
+
+    result = {'host': host, 'sent': count, 'loss_percent': loss,
+              'avg_ms': avg, 'reachable': proc.returncode == 0}
+    if result['reachable']:
+        detail = f"loss={loss}%" if loss is not None else "ok"
+        if avg is not None:
+            detail += f" avg={avg}ms"
+        print(f"  {Colors.GREEN}[+] {host} reachable ({detail}){Colors.RESET}")
+    else:
+        print(f"  {Colors.RED}[!] {host} unreachable{Colors.RESET}")
+    return result
 
 
 def lookup_asn(asn: str) -> Dict[str, Any]:

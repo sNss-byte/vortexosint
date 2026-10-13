@@ -129,6 +129,10 @@ vortexosint network --target 192.168.1.1 --os-detect
 
 # ASN lookup
 vortexosint network --asn AS15169
+
+# Quick tools (also in the interactive menu, page 2)
+vortexosint network --my-ip
+vortexosint network --ping 8.8.8.8
 ```
 
 ### CRYPTO Module
